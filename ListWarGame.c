@@ -108,12 +108,15 @@ int main(void){
                         if(i!=j){
                             if(CheckCollisionCircles(ballsVector[i].coords, ballSize, ballsVector[j].coords, ballSize)){ // COLLISIONS
                                 directionAux = calcDirection(ballsVector[i].coords, ballsVector[j].coords);
-                                ballSpeedAux = Vector2Length(ballsVector[i].velocity);
+                                ballSpeedAux = (Vector2Length(ballsVector[i].velocity) + Vector2Length(ballsVector[i].velocity)) / 2;
+                                
+                                ballsVector[j].coords = Vector2Add(ballsVector[j].coords, (Vector2){-directionAux.x*10, -directionAux.y*10});
+                                ballsVector[i].coords = Vector2Add(ballsVector[i].coords, Vector2Scale(directionAux, 10));
                                 
                                 ballsVector[i].velocity = Vector2Reflect(ballsVector[i].velocity, directionAux);
                                 ballsVector[i].velocity = Vector2Invert(ballsVector[i].velocity);
                                 ballsVector[i].velocity = Vector2Normalize(ballsVector[i].velocity);
-                                ballsVector[i].velocity = Vector2Scale(ballsVector[i].velocity, Vector2Length(ballsVector[j].velocity));
+                                ballsVector[i].velocity = Vector2Scale(ballsVector[i].velocity, ballSpeedAux);
                                 
                                 ballsVector[j].velocity = Vector2Reflect(ballsVector[j].velocity, directionAux);
                                 ballsVector[j].velocity = Vector2Invert(ballsVector[j].velocity);
@@ -147,11 +150,12 @@ int main(void){
                 createBall(&ballsVector[nextInVector] ,250, 700, 0, 0);
             }
             if(throwing){
-                throwDirection = Vector2Subtract(GetMousePosition(), ballsVector[nextInVector].coords);
-                throwDirection = Vector2Normalize(throwDirection);
+                throwDirection = Vector2Subtract(GetMousePosition(), ballsVector[nextInVector].coords);                
                 
-                if(IsMouseButtonDown(MOUSE_BUTTON_LEFT)){
-                    ballsVector[nextInVector].velocity = Vector2Scale(throwDirection, 700);
+                if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
+                    throwDirection = Vector2Normalize(throwDirection);
+                    ballsVector[nextInVector].velocity = Vector2Scale(throwDirection, 1000);
+                    throwing = false;
                 }
             }
             
@@ -309,7 +313,7 @@ void printBall(int ballType, int offset){
 //--------------------------------------------------------------------------------------
 // BALL MANAGEMENT
 void updateBall(Ball *ball){
-    if(ball->velocity.x * ball->velocity.x > 1 && ball->velocity.y * ball->velocity.y > 1){
+    if(ball->velocity.x * ball->velocity.x > 0.5 && ball->velocity.y * ball->velocity.y > 0.5){
         ball->coords.x += ball->velocity.x * GetFrameTime();
         ball->coords.y += ball->velocity.y * GetFrameTime();
         ball->velocity.x -= ball->velocity.x * ballDrag * GetFrameTime();
