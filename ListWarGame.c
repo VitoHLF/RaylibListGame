@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "raymath.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -51,14 +52,17 @@ void createDeck(List* deck);
 void printHand(List* playerDeck);
 void updateBall(Ball *ball);
 void printBall(int ballType, int offset);
+Vector2 calcDirection(Vector2 ball1, Vector2 ball2);
 //------------------------------------------------------------------------------------
-int main(void)
-{
-    int gameState = 1;
+
+int main(void){
+    
+    int gameState = playingState, nextInVector;
     Ball ballsVector[maxBalls];
     List playerDeck, enemyDeck;
-    Vector2 direction;
-    
+    Vector2 directionAux, throwDirection;
+    bool ballsMoving, playerTurn, throwing=false;
+    float ballSpeedAux;
     
     // Initialization
     //--------------------------------------------------------------------------------------
@@ -80,7 +84,13 @@ int main(void)
     //--------------------------------------------------------------------------------------
     
     createBall(&ballsVector[0], 200, 200, 0, 0);
-    ballsVector[0].velocity = (Vector2){500, 500};
+    ballsVector[0].velocity = (Vector2){400, 400};
+    
+    createBall(&ballsVector[1], 400, 200, 0, 0);
+    ballsVector[1].velocity = (Vector2){400, 400};
+    
+    createBall(&ballsVector[2], 400, 400, 0, 0);
+    ballsVector[2].velocity = (Vector2){100, 400};
 
     // Main game loop
     while (!WindowShouldClose())    
@@ -90,22 +100,60 @@ int main(void)
         
         // IN GAME
         if(gameState == playingState){
-            for(int i=0; i<maxBalls; i++){
+            ballsMoving = false;
+            //BALL UPDATE
+            for(int i=0; i<maxBalls; i++){ // ITERATE THROUGH BALLS
                 if(ballsVector[i].ballType >= 0){
-                    for(int j=0; j<maxBalls; j++){
+                    for(int j=0; j<maxBalls; j++){ //COMPARE WITH OTHERS
                         if(i!=j){
-                            if(CheckCollisionCircles(ballsVector[i].coords, ballSize, ballsVector[j].coords, ballSize)){
-                                //direction = ballsVector[j].coords - ballsVector[i].coords;
+                            if(CheckCollisionCircles(ballsVector[i].coords, ballSize, ballsVector[j].coords, ballSize)){ // COLLISIONS
+                                directionAux = calcDirection(ballsVector[i].coords, ballsVector[j].coords);
+                                ballSpeedAux = Vector2Length(ballsVector[i].velocity);
+                                
+                                ballsVector[i].velocity = Vector2Reflect(ballsVector[i].velocity, directionAux);
+                                ballsVector[i].velocity = Vector2Invert(ballsVector[i].velocity);
+                                ballsVector[i].velocity = Vector2Normalize(ballsVector[i].velocity);
+                                ballsVector[i].velocity = Vector2Scale(ballsVector[i].velocity, Vector2Length(ballsVector[j].velocity));
+                                
+                                ballsVector[j].velocity = Vector2Reflect(ballsVector[j].velocity, directionAux);
+                                ballsVector[j].velocity = Vector2Invert(ballsVector[j].velocity);
+                                ballsVector[j].velocity = Vector2Normalize(ballsVector[j].velocity);
+                                ballsVector[j].velocity = Vector2Scale(ballsVector[j].velocity, ballSpeedAux);                              
+                                
                             } 
                         }
                     }
                     updateBall(&ballsVector[i]);
+                    if(ballsVector[i].velocity.x != 0 || ballsVector[i].velocity.x != 0 ){ // CHECK IF MOVING
+                        ballsMoving = true;
+                    }
                 }
             }
             
+            
+            
             //ENEMY ROUND
             
-            //PLAYER ROUND            
+            //PLAYER ROUND         
+            if(!ballsMoving && !throwing){
+                throwing = true;
+                for(int i=0; i<maxBalls; i++){
+                    if(ballsVector[i].ballType < 0){
+                        nextInVector = i;
+                        break;
+                    }
+                }
+                
+                createBall(&ballsVector[nextInVector] ,250, 700, 0, 0);
+            }
+            if(throwing){
+                throwDirection = Vector2Subtract(GetMousePosition(), ballsVector[nextInVector].coords);
+                throwDirection = Vector2Normalize(throwDirection);
+                
+                if(IsMouseButtonDown(MOUSE_BUTTON_LEFT)){
+                    ballsVector[nextInVector].velocity = Vector2Scale(throwDirection, 700);
+                }
+            }
             
         }
         
@@ -126,7 +174,8 @@ int main(void)
                     DrawCircleV(ballsVector[i].coords, ballSize, WHITE);
                 }
             }
-            printHand(&playerDeck);
+            
+            //printHand(&playerDeck);
             
         }
         // PLAYING STATE
@@ -248,9 +297,9 @@ void printHand(List* playerDeck){
 }
 
 void printBall(int ballType, int offset){
-    if(ballType == ballRock) DrawRectangle(50+offset*50, 600, 50, 80, RED);
-    if(ballType == ballPaper) DrawRectangle(50+offset*50, 600, 50, 80, GREEN);
-    if(ballType == ballScissor) DrawRectangle(50+offset*50, 600, 50, 80, BLUE);
+    if(ballType == ballRock) DrawRectangle(50+offset*50, 700, 75, 80, RED);
+    if(ballType == ballPaper) DrawRectangle(50+offset*50, 700, 75, 80, GREEN);
+    if(ballType == ballScissor) DrawRectangle(50+offset*50, 700, 75, 80, BLUE);
 }
 
 // DECK MANAGEMENT
@@ -289,6 +338,15 @@ void createBall(Ball* ball, int X, int Y, int ballType, int owner){
     ball->ballType = ballType;
     ball->coords = (Vector2){X, Y};
     ball->velocity = (Vector2){0, 0};
+}
+
+Vector2 calcDirection(Vector2 ball1, Vector2 ball2){
+    Vector2 newDirection;
+    
+    newDirection = Vector2Subtract(ball1, ball2);
+    newDirection = Vector2Normalize(newDirection);
+    
+    return newDirection;    
 }
 
 // BALL MANAGEMENT
