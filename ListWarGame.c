@@ -8,7 +8,10 @@
 
 #define screenWidth 450
 #define screenHeight 780
-#define margins 20
+#define margins 15
+
+#define topMargin 40
+#define bottomMargin 150
 
 #define maxBalls 30
 #define ballSize 15
@@ -18,7 +21,7 @@
 #define ballPaper 1
 #define ballScissor 2
 #define playerOwner 0
-#define playerOwner 1
+#define enemyOwner 1
 
 #define handSize 6
 
@@ -46,23 +49,25 @@ void createList(List* lista);
 void addFirst(List* lista, int ballType);
 void removeFirst(List* lista);
 void addLast(List* lista, int ballType);
-void removeMiddle(List* playerHand, int index);
+int removeMiddle(List* playerHand, int index);
 void createBall(Ball* ball, int X, int Y, int ballType, int owner);
 void createDeck(List* deck);
 void printHand(List* playerDeck);
 void updateBall(Ball *ball);
-void printBall(int ballType, int offset);
+void printCard(int ballType, int handSpot);
 Vector2 calcDirection(Vector2 ball1, Vector2 ball2);
+float Absolute(float number);
 //------------------------------------------------------------------------------------
 
 int main(void){
     
-    int gameState = playingState, nextInVector;
+    int gameState = playingState, nextInVector, playerPoints=0, enemyPoints=0;
     Ball ballsVector[maxBalls];
     List playerDeck, enemyDeck;
     Vector2 directionAux, throwDirection;
-    bool ballsMoving, playerTurn, throwing=false;
+    bool ballsMoving, playerTurn = false, throwing=false;
     float ballSpeedAux;
+    Texture2D background[2];
     
     // Initialization
     //--------------------------------------------------------------------------------------
@@ -76,21 +81,25 @@ int main(void){
     
     for(int i=0; i<maxBalls; i++){
         ballsVector[i].ballType = -1;
-    }
+    }    
+    
 
     InitWindow(screenWidth, screenHeight, "List Game");
+    
+    background[0] = LoadTexture("assets/fundoMoldura.png");
+    background[1] = LoadTexture("assets/fundoRadar.png");
 
     SetTargetFPS(60);
     //--------------------------------------------------------------------------------------
     
-    createBall(&ballsVector[0], 200, 200, 0, 0);
-    ballsVector[0].velocity = (Vector2){400, 400};
+    /*createBall(&ballsVector[0], 200, 200, 0, 0);
+    ballsVector[0].velocity = (Vector2){0, 0};
     
     createBall(&ballsVector[1], 400, 200, 0, 0);
-    ballsVector[1].velocity = (Vector2){400, 400};
+    ballsVector[1].velocity = (Vector2){0, 0};
     
     createBall(&ballsVector[2], 400, 400, 0, 0);
-    ballsVector[2].velocity = (Vector2){100, 400};
+    ballsVector[2].velocity = (Vector2){0, 0};*/
 
     // Main game loop
     while (!WindowShouldClose())    
@@ -108,26 +117,35 @@ int main(void){
                         if(i!=j){
                             if(CheckCollisionCircles(ballsVector[i].coords, ballSize, ballsVector[j].coords, ballSize)){ // COLLISIONS
                                 directionAux = calcDirection(ballsVector[i].coords, ballsVector[j].coords);
-                                ballSpeedAux = (Vector2Length(ballsVector[i].velocity) + Vector2Length(ballsVector[i].velocity)) / 2;
+                                ballSpeedAux = (Vector2Length(ballsVector[i].velocity) + Vector2Length(ballsVector[j].velocity)) / 2;
                                 
-                                ballsVector[j].coords = Vector2Add(ballsVector[j].coords, (Vector2){-directionAux.x*10, -directionAux.y*10});
-                                ballsVector[i].coords = Vector2Add(ballsVector[i].coords, Vector2Scale(directionAux, 10));
+                                ballsVector[j].coords = Vector2Add(ballsVector[j].coords, (Vector2){-directionAux.x*1, -directionAux.y*1});
+                                ballsVector[i].coords = Vector2Add(ballsVector[i].coords, Vector2Scale(directionAux, 1));
                                 
-                                ballsVector[i].velocity = Vector2Reflect(ballsVector[i].velocity, directionAux);
-                                ballsVector[i].velocity = Vector2Invert(ballsVector[i].velocity);
-                                ballsVector[i].velocity = Vector2Normalize(ballsVector[i].velocity);
-                                ballsVector[i].velocity = Vector2Scale(ballsVector[i].velocity, ballSpeedAux);
+                                CompareTypes(&ballsVector[i], &ballsVector[j], &playerPoints, &enemyPoints);
                                 
-                                ballsVector[j].velocity = Vector2Reflect(ballsVector[j].velocity, directionAux);
-                                ballsVector[j].velocity = Vector2Invert(ballsVector[j].velocity);
-                                ballsVector[j].velocity = Vector2Normalize(ballsVector[j].velocity);
-                                ballsVector[j].velocity = Vector2Scale(ballsVector[j].velocity, ballSpeedAux);                              
+                                if(Absolute(ballsVector[i].velocity.x) < 0.5 && Absolute(ballsVector[i].velocity.y) < 0.5){
+                                    ballsVector[i].velocity = Vector2Scale(directionAux, ballSpeedAux);
+                                }else{
+                                    ballsVector[i].velocity = Vector2Reflect(ballsVector[i].velocity, directionAux);
+                                    ballsVector[i].velocity = Vector2Invert(ballsVector[i].velocity);
+                                    ballsVector[i].velocity = Vector2Normalize(ballsVector[i].velocity);
+                                    ballsVector[i].velocity = Vector2Scale(ballsVector[i].velocity, ballSpeedAux);
+                                }
                                 
+                                if(Absolute(ballsVector[j].velocity.x) < 0.5 && Absolute(ballsVector[j].velocity.y) < 0.5){
+                                    ballsVector[i].velocity = Vector2Scale(directionAux, -ballSpeedAux);
+                                }else{
+                                    ballsVector[j].velocity = Vector2Reflect(ballsVector[j].velocity, directionAux);
+                                    ballsVector[j].velocity = Vector2Invert(ballsVector[j].velocity);
+                                    ballsVector[j].velocity = Vector2Normalize(ballsVector[j].velocity);
+                                    ballsVector[j].velocity = Vector2Scale(ballsVector[j].velocity, ballSpeedAux);
+                                }
                             } 
                         }
                     }
                     updateBall(&ballsVector[i]);
-                    if(ballsVector[i].velocity.x != 0 || ballsVector[i].velocity.x != 0 ){ // CHECK IF MOVING
+                    if(Absolute(ballsVector[i].velocity.x) > 0.5 || Absolute(ballsVector[i].velocity.y) > 0.5){ // CHECK IF MOVING
                         ballsMoving = true;
                     }
                 }
@@ -135,11 +153,8 @@ int main(void){
             
             
             
-            //ENEMY ROUND
-            
-            //PLAYER ROUND         
-            if(!ballsMoving && !throwing){
-                throwing = true;
+            //ENEMY TURN
+            if(!ballsMoving && !playerTurn){
                 for(int i=0; i<maxBalls; i++){
                     if(ballsVector[i].ballType < 0){
                         nextInVector = i;
@@ -147,15 +162,49 @@ int main(void){
                     }
                 }
                 
-                createBall(&ballsVector[nextInVector] ,250, 700, 0, 0);
+                createBall(&ballsVector[nextInVector] ,225, 40, enemyDeck.front->ballType, enemyOwner);
+                throwDirection = (Vector2){rand()%100, rand()%100};
+                throwDirection = Vector2Normalize(throwDirection);
+                ballsVector[nextInVector].velocity = Vector2Scale(throwDirection, 1000);
+                removeFirst(&enemyDeck);
+                playerTurn = true;
+                ballsMoving = true;
+            }
+            
+            //PLAYER TURN
+            if(!ballsMoving && !throwing && playerTurn){
+                for(int i=0; i<maxBalls; i++){
+                    if(ballsVector[i].ballType < 0){
+                        nextInVector = i;
+                        break;
+                    }
+                }
+                
+                if(CheckCollisionPointRec(GetMousePosition(), (Rectangle){14, 675, 70, 90}) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){                                        
+                    createBall(&ballsVector[nextInVector] ,217, 626, removeMiddle(&playerDeck, 1), playerOwner);
+                    throwing = true;
+                }
+                if(CheckCollisionPointRec(GetMousePosition(), (Rectangle){14+88, 675, 70, 90}) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
+                    createBall(&ballsVector[nextInVector] ,217, 626, removeMiddle(&playerDeck, 2), playerOwner);
+                    throwing = true;
+                }
+                if(CheckCollisionPointRec(GetMousePosition(), (Rectangle){14+88*2, 675, 70, 90}) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
+                    createBall(&ballsVector[nextInVector] ,217, 626, removeMiddle(&playerDeck, 3), playerOwner);
+                    throwing = true;
+                }
+                if(CheckCollisionPointRec(GetMousePosition(), (Rectangle){14+88*3, 675, 70, 90}) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
+                    createBall(&ballsVector[nextInVector] ,217, 626, removeMiddle(&playerDeck, 4), playerOwner);
+                    throwing = true;
+                }
             }
             if(throwing){
                 throwDirection = Vector2Subtract(GetMousePosition(), ballsVector[nextInVector].coords);                
                 
-                if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
+                if(IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)){
                     throwDirection = Vector2Normalize(throwDirection);
                     ballsVector[nextInVector].velocity = Vector2Scale(throwDirection, 1000);
                     throwing = false;
+                    playerTurn = false;
                 }
             }
             
@@ -170,16 +219,28 @@ int main(void){
         //----------------------------------------------------------------------------------
         // PLAYING STATE
         if(gameState == playingState){
+            DrawTexture(background[0], 0, 0, WHITE);
+            DrawTexture(background[1], 11, 16, WHITE);
+            printHand(&playerDeck);
+            DrawText(TextFormat("Pontos: %d", playerPoints), 20, 20, 20, GREEN);
+            DrawText(TextFormat("Inimigo: %d", enemyPoints), 320, 20, 20, GREEN);
             ClearBackground(RAYWHITE);
-            DrawRectangle(margins, margins, screenWidth-margins*2, screenHeight-margins*2, BLACK);
+            
             
             for(int i=0; i<maxBalls; i++){
-                if(ballsVector[i].ballType >= 0){
-                    DrawCircleV(ballsVector[i].coords, ballSize, WHITE);
+                switch(ballsVector[i].ballType){
+                    case ballRock:
+                        DrawCircleV(ballsVector[i].coords, ballSize, RED);
+                        break;
+                    case ballPaper:
+                        DrawCircleV(ballsVector[i].coords, ballSize, GREEN);
+                        break;
+                     case ballScissor:
+                        DrawCircleV(ballsVector[i].coords, ballSize, BLUE);
+                        
                 }
+                
             }
-            
-            //printHand(&playerDeck);
             
         }
         // PLAYING STATE
@@ -200,7 +261,77 @@ int main(void){
 //--------------------------------------------------------------------------------------
 // GAME FLOW FUNCTIONS
     
+void CompareTypes(Ball* ball1, Ball* ball2, int* playerPoints, int* enemyPoints){
+    if(ball1->ballType == ballRock){
+        if(ball2->ballType == ballScissor){
+            if(ball1->owner == playerOwner && ball2->owner == enemyOwner){
+                ball2->ballType = -1;
+                *playerPoints+=1;
+            }
+            if(ball1->owner == enemyOwner && ball2->owner == playerOwner){
+                ball2->ballType = -1;
+                *enemyPoints+=1;
+            }
+        }
+        if(ball2->ballType == ballPaper){
+            if(ball1->owner == playerOwner && ball2->owner == enemyOwner){
+                ball1->ballType = -1;
+                *enemyPoints+=1;
+            }
+            if(ball1->owner == enemyOwner && ball2->owner == playerOwner){
+                ball1->ballType = -1;
+                *playerPoints+=1;
+            }
+        }
+    }
     
+    if(ball1->ballType == ballPaper){
+        if(ball2->ballType == ballRock){
+            if(ball1->owner == playerOwner && ball2->owner == enemyOwner){
+                ball2->ballType = -1;
+                *playerPoints+=1;
+            }
+            if(ball1->owner == enemyOwner && ball2->owner == playerOwner){
+                ball2->ballType = -1;
+                *enemyPoints+=1;
+            }
+        }
+        if(ball2->ballType == ballScissor){
+            if(ball1->owner == playerOwner && ball2->owner == enemyOwner){
+                ball1->ballType = -1;
+                *enemyPoints+=1;
+            }
+            if(ball1->owner == enemyOwner && ball2->owner == playerOwner){
+                ball1->ballType = -1;
+                *playerPoints+=1;
+            }
+        }
+    }
+    
+    if(ball1->ballType == ballScissor){
+        if(ball2->ballType == ballPaper){
+            if(ball1->owner == playerOwner && ball2->owner == enemyOwner){
+                ball2->ballType = -1;
+                *playerPoints+=1;
+            }
+            if(ball1->owner == enemyOwner && ball2->owner == playerOwner){
+                ball2->ballType = -1;
+                *enemyPoints+=1;
+            }
+        }
+        if(ball2->ballType == ballRock){
+            if(ball1->owner == playerOwner && ball2->owner == enemyOwner){
+                ball1->ballType = -1;
+                *enemyPoints+=1;
+            }
+            if(ball1->owner == enemyOwner && ball2->owner == playerOwner){
+                ball1->ballType = -1;
+                *playerPoints+=1;
+            }
+        }
+    }
+    
+}
 
 // GAME FLOW FUNCTIONS
 //--------------------------------------------------------------------------------------
@@ -256,21 +387,23 @@ void addLast(List* lista, int ballType){
         lista->size++;
 	}
 }
-
-void removeMiddle(List* playerHand, int index){
+//3
+int removeMiddle(List* playerHand, int index){
     Node *aux = playerHand->front;
     Node *remove;
-    if(index<=6 && index>0 && playerHand->front){
-        for(int i=1; i<index-1; i++){
+    int ballType;
+    if(playerHand->front){
+        for(int i=1; i<index; i++){
             aux = aux->next;
         }
+        ballType = aux->ballType;
         remove = aux->next;
         aux->next = aux->next->next;
         free(remove);        
         playerHand->size--;
     }
     
-    
+    return ballType;
 }
 
 // LIST MANAGEMENT
@@ -291,19 +424,19 @@ void createDeck(List* deck){
 void printHand(List* playerDeck){
     Node* aux;
     if(playerDeck->front) aux = playerDeck->front;
-    for(int i=0; i<6; i++){
+    for(int i=0; i<4; i++){
         if(aux){
-            printBall(aux->ballType, i);
+            printCard(aux->ballType, i);
             aux = aux->next;
         }
     }
     
 }
 
-void printBall(int ballType, int offset){
-    if(ballType == ballRock) DrawRectangle(50+offset*50, 700, 75, 80, RED);
-    if(ballType == ballPaper) DrawRectangle(50+offset*50, 700, 75, 80, GREEN);
-    if(ballType == ballScissor) DrawRectangle(50+offset*50, 700, 75, 80, BLUE);
+void printCard(int ballType, int handSpot){
+    if(ballType == ballRock) DrawRectangle(14+88*handSpot, 675, 70, 90, RED);
+    if(ballType == ballPaper) DrawRectangle(14+88*handSpot, 675, 70, 90, GREEN);
+    if(ballType == ballScissor) DrawRectangle(14+88*handSpot, 675, 70, 90, BLUE);
 }
 
 // DECK MANAGEMENT
@@ -317,24 +450,23 @@ void updateBall(Ball *ball){
         ball->coords.x += ball->velocity.x * GetFrameTime();
         ball->coords.y += ball->velocity.y * GetFrameTime();
         ball->velocity.x -= ball->velocity.x * ballDrag * GetFrameTime();
-        ball->velocity.y -= ball->velocity.y * ballDrag * GetFrameTime();
-        
+        ball->velocity.y -= ball->velocity.y * ballDrag * GetFrameTime();        
     }else{
         ball->velocity.x = 0;
         ball->velocity.y = 0;
     }
     
-    if(ball->coords.x > screenWidth-margins){
-        ball->velocity.x = -ball->velocity.x;
+    if(ball->coords.x > screenWidth - margins - ballSize){
+        ball->velocity.x = -Absolute(ball->velocity.x);
     }
-    if(ball->coords.x < margins){
-        ball->velocity.x = -ball->velocity.x;
+    if(ball->coords.x < margins + ballSize){
+        ball->velocity.x = Absolute(ball->velocity.x);
     }
-    if(ball->coords.y > screenHeight - margins){
-        ball->velocity.y = -ball->velocity.y;
+    if(ball->coords.y > screenHeight - bottomMargin - ballSize){
+        ball->velocity.y = -1 * Absolute(ball->velocity.y);
     }
-    if(ball->coords.y < margins){
-        ball->velocity.y = -ball->velocity.y;
+    if(ball->coords.y < topMargin + ballSize){
+        ball->velocity.y = Absolute(ball->velocity.y);
     }
 }
 
@@ -342,6 +474,7 @@ void createBall(Ball* ball, int X, int Y, int ballType, int owner){
     ball->ballType = ballType;
     ball->coords = (Vector2){X, Y};
     ball->velocity = (Vector2){0, 0};
+    ball->owner = owner;
 }
 
 Vector2 calcDirection(Vector2 ball1, Vector2 ball2){
@@ -354,4 +487,16 @@ Vector2 calcDirection(Vector2 ball1, Vector2 ball2){
 }
 
 // BALL MANAGEMENT
+//--------------------------------------------------------------------------------------
+
+//--------------------------------------------------------------------------------------
+// MISC
+float Absolute(float number){
+    float newNumber = number;
+    
+    if(newNumber<0) newNumber = -newNumber;
+    
+    return newNumber;
+}
+// MISC
 //--------------------------------------------------------------------------------------
