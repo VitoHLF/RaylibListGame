@@ -405,8 +405,9 @@ int removeMiddle(List* playerHand, int index){
                 aux = aux->next;
             }
             remove = aux->next;
-            aux->next = aux->next->next;
             ballType = aux->next->ballType;
+            aux->next = aux->next->next;
+            
         }
         
         free(remove);        
