@@ -52,9 +52,8 @@ void addLast(List* lista, int ballType);
 int removeMiddle(List* playerHand, int index);
 void createBall(Ball* ball, int X, int Y, int ballType, int owner);
 void createDeck(List* deck);
-void printHand(List* playerDeck);
+void printHand(List* playerDeck, Texture* cards);
 void updateBall(Ball *ball);
-void printCard(int ballType, int handSpot);
 Vector2 calcDirection(Vector2 ball1, Vector2 ball2);
 float Absolute(float number);
 //------------------------------------------------------------------------------------
@@ -67,7 +66,7 @@ int main(void){
     Vector2 directionAux, throwDirection;
     bool ballsMoving, playerTurn = false, throwing=false;
     float ballSpeedAux;
-    Texture2D background[2];
+    Texture2D background[2], tokens[3], tokenBackground, cards[3];
     
     // Initialization
     //--------------------------------------------------------------------------------------
@@ -88,6 +87,14 @@ int main(void){
     
     background[0] = LoadTexture("assets/fundoMoldura.png");
     background[1] = LoadTexture("assets/fundoRadar.png");
+    
+    tokens[0] = LoadTexture("assets/tokenRock.png");
+    tokens[1] = LoadTexture("assets/tokenPaper.png");
+    tokens[2] = LoadTexture("assets/tokenScissor.png");
+    tokenBackground = LoadTexture("assets/tokenEnemyBackground.png");
+    cards[0] = LoadTexture("assets/cardRock.png");
+    cards[1] = LoadTexture("assets/cardPaper.png");
+    cards[2] = LoadTexture("assets/cardScissor.png");
 
     SetTargetFPS(60);
     //--------------------------------------------------------------------------------------
@@ -114,7 +121,7 @@ int main(void){
             for(int i=0; i<maxBalls; i++){ // ITERATE THROUGH BALLS
                 if(ballsVector[i].ballType >= 0){
                     for(int j=0; j<maxBalls; j++){ //COMPARE WITH OTHERS
-                        if(i!=j){
+                        if(i!=j && ballsVector[j].ballType >= 0){
                             if(CheckCollisionCircles(ballsVector[i].coords, ballSize, ballsVector[j].coords, ballSize)){ // COLLISIONS
                                 directionAux = calcDirection(ballsVector[i].coords, ballsVector[j].coords);
                                 ballSpeedAux = (Vector2Length(ballsVector[i].velocity) + Vector2Length(ballsVector[j].velocity)) / 2;
@@ -221,26 +228,22 @@ int main(void){
         if(gameState == playingState){
             DrawTexture(background[0], 0, 0, WHITE);
             DrawTexture(background[1], 11, 16, WHITE);
-            printHand(&playerDeck);
-            DrawText(TextFormat("Pontos: %d", playerPoints), 20, 20, 20, GREEN);
-            DrawText(TextFormat("Inimigo: %d", enemyPoints), 320, 20, 20, GREEN);
+            printHand(&playerDeck, &cards);
+            DrawText(TextFormat("Pontos: %2d", playerPoints), 20, 20, 20, GREEN);
+            DrawText(TextFormat("Inimigo: %2d", enemyPoints), 335, 20, 20, GREEN);
             ClearBackground(RAYWHITE);
+            
+            if(!ballsMoving && playerTurn) DrawText("Sua vez.", 183, 20, 20, GREEN);
+            DrawText(TextFormat("%d", playerDeck.size), 385, 712, 30, WHITE);
             
             
             for(int i=0; i<maxBalls; i++){
-                switch(ballsVector[i].ballType){
-                    case ballRock:
-                        DrawCircleV(ballsVector[i].coords, ballSize, RED);
-                        break;
-                    case ballPaper:
-                        DrawCircleV(ballsVector[i].coords, ballSize, GREEN);
-                        break;
-                     case ballScissor:
-                        DrawCircleV(ballsVector[i].coords, ballSize, BLUE);
-                        
+                if(ballsVector[i].ballType>=0){
+                    if(ballsVector[i].owner == enemyOwner) DrawTextureEx(tokenBackground, Vector2Subtract(ballsVector[i].coords, (Vector2){22.5, 22.5}), 0, 0.5, WHITE);
+                    DrawTextureEx(tokens[ballsVector[i].ballType], Vector2Subtract(ballsVector[i].coords, (Vector2){15, 15}), 0, 0.5, WHITE);
                 }
-                
             }
+            
             
         }
         // PLAYING STATE
@@ -393,12 +396,19 @@ int removeMiddle(List* playerHand, int index){
     Node *remove;
     int ballType;
     if(playerHand->front){
-        for(int i=1; i<index; i++){
-            aux = aux->next;
+        if(index == 1){
+            ballType = aux->ballType;
+            remove = aux;
+            playerHand->front = aux->next;
+        }else{
+            for(int i=1; i<index-1; i++){
+                aux = aux->next;
+            }
+            remove = aux->next;
+            aux->next = aux->next->next;
+            ballType = aux->next->ballType;
         }
-        ballType = aux->ballType;
-        remove = aux->next;
-        aux->next = aux->next->next;
+        
         free(remove);        
         playerHand->size--;
     }
@@ -421,23 +431,26 @@ void createDeck(List* deck){
     }
 }
 
-void printHand(List* playerDeck){
+void printHand(List* playerDeck, Texture* cards){
     Node* aux;
     if(playerDeck->front) aux = playerDeck->front;
     for(int i=0; i<4; i++){
         if(aux){
-            printCard(aux->ballType, i);
+            //printCard(aux->ballType, i, cards);
+            DrawTexture(cards[aux->ballType], 14+88*i, 675, WHITE);
             aux = aux->next;
         }
     }
     
 }
 
-void printCard(int ballType, int handSpot){
+/*void printCard(int ballType, int handSpot, Texture* cards){
     if(ballType == ballRock) DrawRectangle(14+88*handSpot, 675, 70, 90, RED);
     if(ballType == ballPaper) DrawRectangle(14+88*handSpot, 675, 70, 90, GREEN);
     if(ballType == ballScissor) DrawRectangle(14+88*handSpot, 675, 70, 90, BLUE);
-}
+
+    
+}*/
 
 // DECK MANAGEMENT
 //--------------------------------------------------------------------------------------
